@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Audio Downloader</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f6f7fb; --card: #ffffff; --text: #14161f; --muted: #6b7080;
+      --border: #e3e5ec; --accent: #4f46e5; --accent-hover: #4338ca;
+      --error-bg: #fdecec; --error: #c0362c; --ok-bg: #e9f7ef; --ok: #1e7a46;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0f1117; --card: #171a23; --text: #eceef4; --muted: #9298a8;
+        --border: #2a2e3b; --accent: #6d66f2; --accent-hover: #827cf5;
+        --error-bg: #3a1a1a; --error: #f08a80; --ok-bg: #12301f; --ok: #6fd39a;
+      }
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; }
+    body {
+      font-family: "Inter", system-ui, -apple-system, sans-serif;
+      background: var(--bg); color: var(--text);
+      display: flex; flex-direction: column; min-height: 100vh;
+    }
+    main { flex: 1; display: flex; align-items: center; justify-content: center; padding: 24px 16px; }
+    .card {
+      width: 100%; max-width: 520px; background: var(--card);
+      border: 1px solid var(--border); border-radius: 16px; padding: 36px 28px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.05);
+    }
+    h1 { margin: 0 0 6px; font-size: 26px; font-weight: 700; letter-spacing: -.02em; }
+    p.sub { margin: 0 0 28px; color: var(--muted); font-size: 15px; line-height: 1.5; }
+    label { display: block; font-size: 13px; font-weight: 500; color: var(--muted); margin-bottom: 8px; }
+    input {
+      width: 100%; padding: 14px 16px; font: inherit; font-size: 15px;
+      color: var(--text); background: var(--bg);
+      border: 1px solid var(--border); border-radius: 10px; outline: none;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent); }
+    .q-label { margin-top: 18px; }
+    .quality { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .quality input { position: absolute; opacity: 0; pointer-events: none; }
+    .quality label {
+      margin: 0; padding: 10px 6px; text-align: center; cursor: pointer;
+      border: 1px solid var(--border); border-radius: 10px; background: var(--bg);
+      color: var(--text); font-size: 14px; font-weight: 600; transition: border-color .15s, background .15s;
+    }
+    .quality label small { display: block; font-size: 11.5px; font-weight: 400; color: var(--muted); margin-top: 2px; }
+    .quality input:checked + label {
+      border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--card));
+    }
+    .quality input:focus-visible + label { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
+    button {
+      width: 100%; margin-top: 18px; padding: 14px; font: inherit; font-size: 15px; font-weight: 600;
+      color: #fff; background: var(--accent); border: 0; border-radius: 10px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      transition: background .15s;
+    }
+    button:hover:not(:disabled) { background: var(--accent-hover); }
+    button:disabled { opacity: .7; cursor: wait; }
+    .spinner {
+      width: 16px; height: 16px; border: 2px solid rgba(255,255,255,.4); border-top-color: #fff;
+      border-radius: 50%; animation: spin .8s linear infinite; display: none;
+    }
+    button.loading .spinner { display: inline-block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .msg { margin-top: 16px; padding: 12px 14px; border-radius: 10px; font-size: 14px; display: none; }
+    .msg.error { display: block; background: var(--error-bg); color: var(--error); }
+    .msg.ok { display: block; background: var(--ok-bg); color: var(--ok); }
+    .hint { margin-top: 18px; font-size: 12.5px; color: var(--muted); text-align: center; }
+    footer { text-align: center; padding: 20px 16px; font-size: 14px; color: var(--muted); }
+    footer .heart { color: #e5484d; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="card">
+      <h1>Audio Downloader</h1>
+      <p class="sub">Paste a video link from YouTube, Instagram, or almost any other platform and get the audio as an MP3.</p>
+
+      <form id="form" novalidate>
+        <label for="url">Video link</label>
+        <input id="url" type="url" placeholder="https://..." autocomplete="off" required>
+
+        <label class="q-label" id="qLabel">Audio quality</label>
+        <div class="quality" role="radiogroup" aria-labelledby="qLabel">
+          <input type="radio" name="quality" id="q320" value="320" checked>
+          <label for="q320">320 kbps<small>Best</small></label>
+          <input type="radio" name="quality" id="q192" value="192">
+          <label for="q192">192 kbps<small>Standard</small></label>
+          <input type="radio" name="quality" id="q128" value="128">
+          <label for="q128">128 kbps<small>Smaller file</small></label>
+        </div>
+        <button id="btn" type="submit"><span class="spinner"></span><span id="btnText">Get Audio</span></button>
+      </form>
+
+      <div id="msg" class="msg" role="status"></div>
+      <p class="hint">Works with YouTube, Instagram, X, Facebook, TikTok, SoundCloud, Vimeo &amp; more.</p>
+    </div>
+  </main>
+
+  <footer>Made with <span class="heart">♥</span> by Atharv Gadekar</footer>
+
+  <script>
+    const form = document.getElementById("form");
+    const input = document.getElementById("url");
+    const btn = document.getElementById("btn");
+    const btnText = document.getElementById("btnText");
+    const msg = document.getElementById("msg");
+
+    function show(type, text) { msg.className = "msg " + type; msg.textContent = text; }
+    function setLoading(on) {
+      btn.disabled = on; btn.classList.toggle("loading", on);
+      btnText.textContent = on ? "Fetching audio…" : "Get Audio";
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const url = input.value.trim();
+      msg.className = "msg";
+      if (!/^https?:\/\/\S+$/i.test(url)) return show("error", "Please paste a valid link.");
+
+      setLoading(true);
+      try {
+        const res = await fetch("/api/audio", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url, quality: form.querySelector('input[name="quality"]:checked').value }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          return show("error", data.error || "Audio not available.");
+        }
+        const blob = await res.blob();
+        const cd = res.headers.get("Content-Disposition") || "";
+        const star = cd.match(/filename\*=UTF-8''([^;]+)/i);
+        const plain = cd.match(/filename="?([^";]+)"?/i);
+        const name = star ? decodeURIComponent(star[1]) : plain ? plain[1] : "audio.mp3";
+
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = name;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+        show("ok", "Download started: " + name);
+      } catch {
+        show("error", "Network error. Please check your connection and try again.");
+      } finally {
+        setLoading(false);
+      }
+    });
+  </script>
+</body>
+</html>
